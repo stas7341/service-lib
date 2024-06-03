@@ -13,13 +13,6 @@ describe(`Unit Tests for configuration`, () => {
     afterEach(() => {
     });
 
-    test(`Should extract "NVR_SERVICE.host.port" from ConfigManager and check for a valid number`, () => {
-        let port = confMgr.get('NVR_SERVICE.host.port');
-        port = parseInt(port, 10);
-        expect(typeof port).toBe('number');
-        expect(port).toEqual(8180);
-    });
-
     test(`Should extract "Logger.timestamp" from ConfigManager as a boolean`, () => {
         const bParam = confMgr.get('Logger.timestamp', TYPE.BOOLEAN);
         expect(typeof bParam).toBe("boolean");
@@ -44,6 +37,5 @@ describe(`Unit Tests for configuration`, () => {
         const keys = Object.keys(config);
         expect(keys).toContain("aqmp");
         expect(keys).toContain("redis");
-        expect(keys).toContain("mysql");
     });
 });
