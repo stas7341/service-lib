@@ -1,0 +1,31 @@
+{
+  "aqmp": {
+    "username": "guest",
+    "password": "guest",
+    "host": "localhost",
+    "options_durable": "true",
+    "options_noAck": "true",
+    "prefetch": 1
+  },
+  "redis": {
+    "user": "default",
+    "password": "r3d1s!",
+    "host": "127.0.0.1",
+    "port": 6379,
+    "publisher": false,
+    "subscriber": false
+  },
+  "Logger": {
+    "Transports": [
+      "Console"
+    ],
+    "level": "trace",
+    "FileDir": "./log/",
+    "FileName": "test.log",
+    "prettyPrint": true,
+    "colorize": true,
+    "prefix": "testApp",
+    "timestamp": true,
+    "max_msg_len": 1208
+  }
+}
