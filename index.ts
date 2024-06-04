@@ -12,6 +12,7 @@ export * from "./lib/interfaces/redis.interface";
 export * from "./lib/utils/localCache";
 export * from "./lib/utils/remoteCache";
 export * from "./lib/model/types";
+export * from "./lib/services/redisService";
 
 
 
