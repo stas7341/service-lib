@@ -1,6 +1,6 @@
 {
   "name": "@asmtechno/service-lib",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "author": "Stas M.",
   "description": "A common project to share functionality between microservices",
   "main": "dist/index.js",
@@ -13,12 +13,11 @@
   },
   "scripts": {
     "build": "tsc",
-    "load_modules": "npm i",
-    "npm_login": "npm login --registry=\"https://registry.npmjs.org\"",
-    "publishing": "npm publish --registry=\"https://registry.npmjs.org\"",
-    "publis_access": "npm publish --access public --registry=\"https://registry.npmjs.org\"",
-    "local_publish": "npm link",
+    "load-modules": "npm i --also-dev",
+    "npm_login": "npm login --scope=@asmtechno --auth-type=legacy --registry=\"https://registry.npmjs.org\"",
+    "publis_access": "npm publish --scope=@asmtechno --auth-type=legacy --access public --registry=\"https://registry.npmjs.org\"",
     "packaging": "npm run build && npm pack",
+    "local_publish": "npm link",
     "test": "NODE_ENV=test STANDALONE_TEST=true jest --config=jest.config.ts",
     "test_rabbit": "NODE_ENV=test STANDALONE_TEST=true jest --config=jest.config.ts -t=Unit Tests AMQP",
     "testDev_rabbit": "NODE_ENV=debug jest --config=jest.config.js -t=Unit Tests AMQP",
@@ -40,6 +39,7 @@
     "node-cache": "5.1.2",
     "redis": "4.6.10",
     "ts-jest": "^29.0.5",
+    "bluebird": "3.7.2",
     "winston": "3.8.2"
   },
   "devDependencies": {
@@ -55,8 +55,10 @@
     "typescript": "^4.9.5"
   },
   "directories": {
-    "lib": "lib",
-    "test": "test"
+    "lib": "lib"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "repository": {
     "type": "git",
