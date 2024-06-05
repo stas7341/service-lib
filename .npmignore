@@ -13,4 +13,4 @@ config.gypi
 CVS
 npm-debug.log
 .idea
-lib
+coverage
