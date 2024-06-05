@@ -1,5 +1,5 @@
 "use strict";
-var fs = require('fs');
+import fs from 'fs';
 
 export abstract class FileUtils {
     static readTextFileToArray(filePath: string): string[] {

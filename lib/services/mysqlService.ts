@@ -2,10 +2,7 @@
 // @ts-ignore
 import {LogLevel} from "./logger";
 import EventEmitter from "node:events";
-
-const bluebird = require('bluebird');
-const mysql = require('mysql2');
-//const mysql = require('mysql2/promise');
+import mysql from 'mysql2';
 
 export interface mysqlConfig {
     host: string,
@@ -41,15 +38,16 @@ export class mysqlService extends EventEmitter{
     log(msg: string, level: LogLevel = LogLevel.info, metadata?: any) {
         this.emit("log", msg, level, metadata);
     }
-
+    
     isInit = () => this.isInitialized;
 
     async init(config: mysqlConfig) : Promise<boolean> {
+        const bluebird = require('bluebird');
         try {
             this.config = config;
-            this.isInitialized = false;
+            this.isInitialized = false;``
 
-            if (process.env.NODE_ENV === 'test') {
+            if (process.env.NODE_ENV === 'dummy_test') {
                 if (config.host.length === 0 || config.user.length === 0 || config.password.length === 0 || config.database.length === 0) {
                     log('mysql::the config validation failed, ' + JSON.stringify(config), LogLevel.error);
                     return false;
@@ -77,7 +75,7 @@ export class mysqlService extends EventEmitter{
         try {
             this.isInit();
 
-            if (process.env.NODE_ENV === 'test') {
+            if (process.env.NODE_ENV === 'dummy_test') {
                 return {success: true};
             }
 
@@ -105,5 +103,11 @@ export class mysqlService extends EventEmitter{
             }
             throw err;
         }
+    }
+
+    async poolEnd() {
+        this.connectionPoolPromise.end();
+        this.connectionPoolPromise = undefined;
+        this.isInitialized = false
     }
 }

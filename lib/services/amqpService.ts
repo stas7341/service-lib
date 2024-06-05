@@ -16,7 +16,7 @@ export interface amqpConfig {
     prefetch: number
 }
 
-const channelClose = (ch) => {setTimeout(() => {ch.close()}, 30000)};
+const channelClose = (ch) => ch.close();
 
 const log = ( msg: string, level: LogLevel = LogLevel.info, metadata: any = undefined) =>
     amqpService.getInstance().log(msg, level, metadata);
@@ -35,7 +35,11 @@ export class amqpService extends EventEmitter {
         this.isInitialized = false;
         this.reconnectStarted = false;
     }
-    isInit = () => this.isInitialized;
+    isInit = () => {
+        if(!this.isInitialized)
+            throw new Error(`Service ${this.constructor.name} is not initialized.`);
+        return true;
+    };
 
     static getInstance(): amqpService {
         if (!this.instance)
@@ -47,8 +51,13 @@ export class amqpService extends EventEmitter {
         this.emit("log", msg, level, metadata);
     }
 
-    reconnect(config: amqpConfig) {
+    async close() {
         this.isInitialized = false;
+        await this?.amqp?.close();
+        delete this?.amqp;
+    }
+
+    reconnect(config: amqpConfig) {
         if(this.reconnectStarted) {
             log("already started to reconnect..", LogLevel.trace);
             return;
@@ -56,8 +65,7 @@ export class amqpService extends EventEmitter {
 
         this.reconnectStarted = true;
         if(this.amqp) {
-            this.amqp.close();
-            delete this.amqp;
+            this.close();
         }
         setTimeout(async () => {
                     return this.init(config);
@@ -122,7 +130,7 @@ export class amqpService extends EventEmitter {
                 return resolve(false);
             }
 
-            if (process.env.NODE_ENV === 'test') {
+            if (process.env.NODE_ENV === 'dummy_test') {
                 this.isInitialized = true;
                 return resolve(true);
             }
@@ -144,7 +152,9 @@ export class amqpService extends EventEmitter {
                 });
                 conn.on("close", () => {
                     log("reconnecting...", LogLevel.trace);
-                    this.reconnect(config);
+                    if(this.isInitialized) {
+                        this.reconnect(config);
+                    }
                 });
 
                 this.amqp = conn;
@@ -246,13 +256,14 @@ export class amqpService extends EventEmitter {
             throw new Error('maxPriority should be less or equal to 10')
         }
 
-        if (process.env.NODE_ENV === 'test') {
+        if (process.env.NODE_ENV === 'dummy_test') {
             return {maxPriority};
         }
 
         this.amqp.createChannel((err, ch) => {
             if (err !== null) {
                 log(err, LogLevel.error);
+                return;
             }
 
             if(exchange !== "") {
@@ -398,7 +409,7 @@ export class amqpService extends EventEmitter {
         if (!(message && message.action && message.action.length > 0 && message.payload))
             throw new Error('we are expecting message format with action and payload, got: ' + JSON.stringify(message));
 
-        if (process.env.NODE_ENV === 'test') {
+        if (process.env.NODE_ENV === 'dummy_test') {
             if (exchange.length === 0 || routingKey.length === 0)
                 throw new Error('wrong parameters: exchange and routingKey');
             return JSON.stringify(message);
@@ -414,7 +425,7 @@ export class amqpService extends EventEmitter {
         if (message.length === 0)
             throw new Error('we are expecting message in string format, got: ' + message);
 
-        if (process.env.NODE_ENV === 'test') {
+        if (process.env.NODE_ENV === 'dummy_test') {
             if (!(exchange.length === 0 || routingKey.length === 0)) {
                 return message.toString();
             } else {

@@ -1,8 +1,8 @@
 "use strict";
 import {GeneralUtils} from "../utils/general";
 const winston = require('winston');
-const os = require('os');
-const fs = require('fs');
+import os from 'os';
+import fs from 'fs';
 
 export enum LogLevel {
     error, // the log level that should be used when the application hits an issue

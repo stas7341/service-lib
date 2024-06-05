@@ -1,8 +1,8 @@
 "use strict";
 import zlib from "node:zlib";
 
-const os = require("os");
-const fs = require('fs');
+import os from "os";
+import fs from 'fs';
 export class GeneralUtils {
 
     static isOverlapping(num1, num2, delta) {
@@ -33,7 +33,7 @@ export class GeneralUtils {
 
     static readFromFile(fileName) {
         let data = fs.readFileSync(fileName);
-        return JSON.parse(data);
+        return JSON.parse(data.toString());
     }
 
     static writeToFile(fileName, data) {

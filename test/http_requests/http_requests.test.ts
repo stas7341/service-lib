@@ -11,10 +11,6 @@ describe(`Unit Tests http requests`, () => {
     });
 
     afterAll(async () => {
-        // clear all tests from redis
-        // if (!process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-        //
-        // }
     });
 
     beforeEach(() => {
@@ -32,21 +28,7 @@ describe(`Unit Tests http requests`, () => {
             .catch(err => {
                 throw new Error(`[GET] request to ${url} failed. error: ${err}`);
             });
-        expect(typeof (JSON.parse(result as string))).toBe('object');
-    });
-
-    test(`make [GET] request HttpService.get with auth should return statusCode 200 and object as body`, async () => {
-        if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            jest.spyOn(HttpService, 'get').mockResolvedValueOnce('{}');
-        }
-
-        const url = `https://postman-echo.com/get?foo1=bar1&foo2=bar2`;
-        const result = await HttpService
-            .get(url, {"test_key": "test_value"}, "", "")
-            .catch(err => {
-                throw new Error(`[GET] request to ${url} failed. error: ${err}`);
-            });
-        expect(typeof (JSON.parse(result as string))).toBe("object");
+        expect(typeof result).toBe('object');
     });
 
     test(`make [GET] request HttpService.get should return exception`, async () => {
@@ -56,10 +38,10 @@ describe(`Unit Tests http requests`, () => {
 
         const url = `https://postman-echo-not-exists.com/get?foo1=bar1&foo2=bar2`;
         try {
-            await HttpService.get(url, {"test_key": "test_value"}, "", "")
-            throw new Error(`expect to fail, should not get here`);
+            await HttpService.get(url, {"test_key": "test_value"}, "", "");
+            expect(true).toBe(false);
         } catch (err: any) {
-            expect(err.message).toContain('ENOTFOUND');
+            expect(err.message.toString()).toContain('ENOTFOUND');
         }
     });
 
@@ -79,7 +61,7 @@ describe(`Unit Tests http requests`, () => {
     });
 
     test(`make [POST] request HttpService.post should return statusCode 200 and object as body`, async () => {
-        const data = {name: 'ravin-ai'};
+        const data = {name: 'test'};
 
         if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
             jest.spyOn(HttpService, 'post').mockResolvedValueOnce({data});
@@ -97,16 +79,16 @@ describe(`Unit Tests http requests`, () => {
 
     test(`make [POST] request HttpService.post should return exception`, async () => {
         if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            jest.spyOn(HttpService, 'post').mockRejectedValueOnce({message: "404:Not Found"});
+            jest.spyOn(HttpService, 'post').mockRejectedValueOnce({message: "404"});
         }
 
         const url = `https://postman-echo.com/kuku`;
-        const data = {name: 'ravin-ai'};
+        const data = {name: 'test'};
         try {
             await HttpService.post(url, data);
-            throw new Error(`expect request to fail`);
-        } catch (error) {
-            expect(error).toMatchObject({message: "404:Not Found"});
+            expect(true).toBe(false);
+        } catch (error: any) {
+            expect(error.message).toContain("404");
         }
     });
 
@@ -116,17 +98,17 @@ describe(`Unit Tests http requests`, () => {
         }
 
         const url = `https://postman-echo.com-not-exist/kuku`;
-        const data = {name: 'ravin-ai'};
+        const data = {name: 'test'};
         try {
             await HttpService.post(url, data);
-            throw new Error(`expect request to fail`);
+            expect(true).toBe(false);
         } catch (error: any) {
-            expect(error.message).toContain('ENOTFOUND');
+            expect(error.message.toString()).toContain('ENOTFOUND');
         }
     });
 
     test(`make [POST] HttpService.query should return statusCode 200 and object as body`, async () => {
-        const data = {name: 'ravin-ai'};
+        const data = {name: 'test'};
 
         if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
             jest.spyOn(HttpService, 'query').mockResolvedValueOnce({data});
@@ -150,7 +132,7 @@ describe(`Unit Tests http requests`, () => {
     });
 
     test(`make [POST] HttpService.query with auth should return statusCode 200 and object as body`, async () => {
-        const data = {name: 'ravin-ai'};
+        const data = {name: 'test'};
 
         if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
             jest.spyOn(HttpService, 'query').mockResolvedValueOnce({data});

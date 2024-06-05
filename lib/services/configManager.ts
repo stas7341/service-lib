@@ -1,5 +1,5 @@
 "use strict";
-const fs = require('fs');
+import fs from 'fs';
 /**
 * This is a wrapping class for microservices configuration management.
 * Its serving all the cloud microservices to get their needed configurations.

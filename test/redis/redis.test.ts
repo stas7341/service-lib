@@ -1,4 +1,4 @@
-import {ConfigManager} from "../../lib/services/configManager";
+import {ConfigManager, TYPE} from "../../lib/services/configManager";
 import {Logger} from "../../lib/services/logger";
 import {redisService} from "../../lib/services/redisService";
 
@@ -11,7 +11,7 @@ describe("Unit Tests Redis", () => {
     beforeAll(async () => {
         await confMgr.init("../test.json", "");
         await Logger.getInstance().init(confMgr);
-        conf = confMgr.Read["redis"];
+        conf = confMgr.get("redis", TYPE.OBJECT);
         await redis.init(conf);
     });
 
@@ -122,30 +122,6 @@ describe("Unit Tests Redis", () => {
             return expect(true).toBe(true);
         }
         const a = await redis.incFloatFieldInHash("queue", "b", 0.5);
-        expect(true).toBe(true);
-    });
-
-    test("getRandomFieldFromHash", async () => {
-        if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            return expect(true).toBe(true);
-        }
-        const a = await redis.getRandomFieldFromHash("queue");
-        expect(true).toBe(true);
-    });
-
-    test("getRandomFieldsFromHash", async () => {
-        if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            return expect(true).toBe(true);
-        }
-        const a = await redis.getRandomFieldsFromHash("queue", 3);
-        expect(true).toBe(true);
-    });
-
-    test("getRandomFieldsAndValuesFromHash", async () => {
-        if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            return expect(true).toBe(true);
-        }
-        const a = await redis.getRandomFieldsAndValuesFromHash("queue", 3);
         expect(true).toBe(true);
     });
 

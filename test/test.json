@@ -27,5 +27,15 @@
     "prefix": "testApp",
     "timestamp": true,
     "max_msg_len": 1208
+  },
+  "mysql": {
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "password",
+    "database": "test",
+    "connectTimeout": "100000",
+    "multipleStatements": false,
+    "connectionLimit": "100",
+    "port": 3306
   }
 }
