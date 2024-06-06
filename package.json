@@ -3,8 +3,8 @@
   "version": "1.0.8",
   "author": "Stas M.",
   "description": "A common project to share functionality between microservices",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "lib/src/index.js",
+  "types": "lib/src/index.d.ts",
   "eslintConfig": {
     "env": {
       "browser": true,

@@ -20,12 +20,10 @@
     "baseUrl": "."
   },
   "include": [
-    "src/**/*.ts",
-    "example/**/*.ts",
-    "index.ts"
+    "./src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "lib"
   ]
 }
