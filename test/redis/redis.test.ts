@@ -1,6 +1,6 @@
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
-import {Logger} from "../../lib/services/logger";
-import {redisService} from "../../lib/services/redisService";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
+import {Logger} from "../../src/services/logger";
+import {redisService} from "../../src/services/redisService";
 
 describe("Unit Tests Redis", () => {
     const confMgr = ConfigManager.getInstance();

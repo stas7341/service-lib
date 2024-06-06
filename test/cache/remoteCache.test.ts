@@ -1,7 +1,7 @@
-import {cacheRemoteConfig, RemoteCache} from "../../lib/utils/remoteCache";
-import {Logger} from "../../lib/services/logger";
-import {ConfigManager} from "../../lib/services/configManager";
-import {redisService} from "../../lib/services/redisService";
+import {cacheRemoteConfig, RemoteCache} from "../../src/utils/remoteCache";
+import {Logger} from "../../src/services/logger";
+import {ConfigManager} from "../../src/services/configManager";
+import {redisService} from "../../src/services/redisService";
 
 describe(`Unit Tests for remote cache`, () => {
     let remoteCache: RemoteCache;

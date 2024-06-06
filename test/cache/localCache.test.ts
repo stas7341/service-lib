@@ -1,4 +1,4 @@
-import {LocalCache} from "../../lib/utils/localCache";
+import {LocalCache} from "../../src/utils/localCache";
 
 describe("Unit Tests for local cache", () => {
     beforeAll(async () => {

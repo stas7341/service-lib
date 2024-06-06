@@ -1,5 +1,5 @@
-import {SetOptions} from "@redis/client/dist/lib/commands/SET";
 import {RedisCommandArgument} from "@redis/client/dist/lib/commands";
+import { SetOptions } from "redis";
 import {LogLevel} from "../services/logger";
 
 export interface redisConfig {

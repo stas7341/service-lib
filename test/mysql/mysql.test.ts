@@ -1,6 +1,6 @@
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
-import {Logger} from "../../lib/services/logger";
-import {mysqlService} from "../../lib/services/mysqlService";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
+import {Logger} from "../../src/services/logger";
+import {mysqlService} from "../../src/services/mysqlService";
 
 describe("Unit Tests MYSQL", () => {
     const confMgr = ConfigManager.getInstance();

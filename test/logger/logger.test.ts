@@ -1,5 +1,5 @@
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
-import {Logger, LogLevel} from "../../lib/services/logger";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
+import {Logger, LogLevel} from "../../src/services/logger";
 
 describe(`Unit Tests Logger`, () => {
     const confMgr = ConfigManager.getInstance();

@@ -1,4 +1,4 @@
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
 
 describe(`Unit Tests for configuration`, () => {
     const confMgr = ConfigManager.getInstance();

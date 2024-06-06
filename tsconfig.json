@@ -2,9 +2,7 @@
   "compileOnSave": true,
   "compilerOptions": {
     "target": "es2020",
-    "lib": [
-      "es2020"
-    ],
+    "lib": ["es2020", "es2017", "es7", "es6", "dom"],
     "module": "commonjs",
     "noImplicitAny": false,
     "removeComments": true,
@@ -17,16 +15,14 @@
     "esModuleInterop": true,
     "pretty": true,
     "resolveJsonModule": true,
-    "outDir": "dist",
+    "outDir": "lib",
     "declaration": true,
     "baseUrl": "."
   },
   "include": [
-    "lib/**/*.ts",
-    "index.ts",
-    "test/**/*.ts",
-    "test/**/*.json",
-    "jest.config.ts"
+    "src/**/*.ts",
+    "example/**/*.ts",
+    "index.ts"
   ],
   "exclude": [
     "node_modules",

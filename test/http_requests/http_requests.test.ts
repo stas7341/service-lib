@@ -1,6 +1,6 @@
-import {Logger} from "../../lib/services/logger";
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
-import {HttpService} from "../../lib/services/httpService";
+import {Logger} from "../../src/services/logger";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
+import {HttpService} from "../../src/services/httpService";
 
 describe(`Unit Tests http requests`, () => {
     const confMgr = ConfigManager.getInstance();

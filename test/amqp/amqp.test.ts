@@ -1,7 +1,7 @@
-import {amqpService, handlingMessage} from "../../lib/services/amqpService";
-import {ConfigManager, TYPE} from "../../lib/services/configManager";
-import {Message} from "../../lib/model/message";
-import {Logger} from "../../lib/services/logger";
+import {amqpService, handlingMessage} from "../../src/services/amqpService";
+import {ConfigManager, TYPE} from "../../src/services/configManager";
+import {Message} from "../../src/model/message";
+import {Logger} from "../../src/services/logger";
 
 describe(`Unit Tests AMQP`, () => {
     const confMgr = ConfigManager.getInstance();
