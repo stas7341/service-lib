@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "outDir": "./lib/cjs",
+    "lib": ["es2020","es2017","es7","es6","esnext","dom"]
+  },
+}

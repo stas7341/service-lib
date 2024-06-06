@@ -74,23 +74,6 @@ export class amqpService extends EventEmitter {
     }
 
     reconnectSubscriber(exchange:string, routingKey:string, queueName: string, controller: handlingMessage,
-                        exchangeType: string = "topic", maxPriority?: number) {
-        if(this.isInitialized) {
-            setTimeout(async () => {
-                await this.subscribe(exchange, routingKey, queueName, controller, exchangeType, maxPriority).catch((err) => {
-                    this.reconnectSubscriber(exchange, routingKey, queueName, controller, exchangeType, maxPriority);
-                });
-            }, TIMEOUT);
-            log("try to resubscribe..", LogLevel.trace);
-        }
-        else {
-            setTimeout(() => {
-                this.reconnectSubscriber(exchange, routingKey, queueName, controller, exchangeType, maxPriority);
-            }, TIMEOUT);
-        }
-    }
-
-    reconnectSubscriber2(exchange:string, routingKey:string, queueName: string, controller: handlingMessage,
                          options: {
                              exchangeType: string,
                              maxPriority?: number,
@@ -102,15 +85,15 @@ export class amqpService extends EventEmitter {
                          ) {
         if(this.isInitialized) {
             setTimeout(async () => {
-                await this.subscribe2(exchange, routingKey, queueName, controller, options).catch((err) => {
-                    this.reconnectSubscriber2(exchange, routingKey, queueName, controller,options);
+                await this.subscribe(exchange, routingKey, queueName, controller, options).catch((err) => {
+                    this.reconnectSubscriber(exchange, routingKey, queueName, controller,options);
                 });
             }, TIMEOUT);
             log("try to resubscribe..", LogLevel.trace, {exchange, routingKey, queueName, controller, options});
         }
         else {
             setTimeout(() => {
-                this.reconnectSubscriber2(exchange, routingKey, queueName, controller, options);
+                this.reconnectSubscriber(exchange, routingKey, queueName, controller, options);
             }, TIMEOUT);
         }
     }
@@ -165,7 +148,7 @@ export class amqpService extends EventEmitter {
         });
     }
 
-    async subscribe2(exchange:string, routingKey:string, queueName: string, controller: handlingMessageUid,
+    async subscribe(exchange:string, routingKey:string, queueName: string, controller: handlingMessageUid,
                     options: {
                         exchangeType: string,
                         maxPriority?: number,
@@ -191,6 +174,7 @@ export class amqpService extends EventEmitter {
         this.amqp.createChannel((err, ch) => {
             if (err !== null) {
                 log(err, LogLevel.error);
+                return;
             }
 
             if(exchange !== "") {
@@ -202,11 +186,12 @@ export class amqpService extends EventEmitter {
 
             ch.on("error", (err) => {
                 log(err.message, LogLevel.error);
+                return;
             });
             ch.on("close", () => {
                 if(options.reconnectOnClose) {
                     log("subscribe channel reconnecting...", LogLevel.trace);
-                    return this.reconnectSubscriber2(exchange, routingKey, queueName, controller, options);
+                    return this.reconnectSubscriber(exchange, routingKey, queueName, controller, options);
                 }
             });
 
@@ -236,79 +221,6 @@ export class amqpService extends EventEmitter {
                     });
                 }, {
                     noAck: options?.options_noAck || this?.config?.options_noAck || false
-                });
-            });
-        });
-    }
-
-    async subscribe(exchange:string, routingKey:string, queueName: string, controller: handlingMessage,
-                    exchangeType: string = "topic", maxPriority?: number, reconnectOnClose: boolean = true): Promise<any>{
-        this.isInit();
-        log(`Subscribe ${exchange}, ${routingKey}, ${queueName}`, LogLevel.trace);
-
-        if (!controller || !queueName || queueName.length === 0)
-            throw new Error('wrong parameters: controller and queue name');
-
-        if ((exchange.length > 0 && routingKey.length === 0) || (exchange.length === 0 && routingKey.length > 0))
-            throw new Error('wrong parameters: exchange and routing key');
-
-        if (maxPriority && maxPriority > 10) {
-            throw new Error('maxPriority should be less or equal to 10')
-        }
-
-        if (process.env.NODE_ENV === 'dummy_test') {
-            return {maxPriority};
-        }
-
-        this.amqp.createChannel((err, ch) => {
-            if (err !== null) {
-                log(err, LogLevel.error);
-                return;
-            }
-
-            if(exchange !== "") {
-                ch.assertExchange(exchange, exchangeType, {
-                    durable: this.config.options_durable,
-                    maxPriority
-                });
-            }
-
-            ch.on("error", (err) => {
-                log(err.message, LogLevel.error);
-            });
-            ch.on("close", () => {
-                if(reconnectOnClose) {
-                    log("subscribe channel reconnecting...", LogLevel.trace);
-                    return this.reconnectSubscriber(exchange, routingKey, queueName, controller, exchangeType, maxPriority);
-                }
-            });
-
-            ch.assertQueue(queueName, { durable: this.config.options_durable, maxPriority}, (error, q) => {
-                if (error !== null) {
-                    log("failed", LogLevel.error, error);
-                }
-
-                if(exchange !== "") {
-                    ch.bindQueue(q.queue, exchange, routingKey);
-                    log("bind to queue: " + q.queue, LogLevel.trace);
-                }
-
-                if (this.config.prefetch) {
-                    ch.prefetch(parseInt(this.config.prefetch.toString()));
-                }
-                ch.consume(q.queue, async(msg) => {
-                    // const messageBody = msg.content.toString().trim();
-
-                    controller(msg, ch)
-                        .then((returnCode) => {
-                            log('on ack msg', returnCode ? LogLevel.trace : LogLevel.trace);
-                            ch.ack(msg);
-                        }).catch(err=> {
-                            log("" + err, LogLevel.error);
-                            throw new Error(err);
-                        });
-                }, {
-                    noAck: this.config.options_noAck
                 });
             });
         });

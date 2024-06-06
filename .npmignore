@@ -14,3 +14,4 @@ CVS
 npm-debug.log
 .idea
 coverage
+*.tgz
