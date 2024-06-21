@@ -23,7 +23,7 @@ const log = (msg: string, level: LogLevel, metadata?) => redisService.getInstanc
 export class redisService extends EventEmitter implements IRedisCommands{
     protected config = {} as RedisClientOptions;
     protected redisClient!: RedisClientType;
-    private static instance: IRedisCommands;
+    private static instance: redisService;
     private isInitialized: boolean;
     protected constructor() {
         super();
@@ -34,7 +34,7 @@ export class redisService extends EventEmitter implements IRedisCommands{
     static getInstance() {
         if (!redisService.instance)
             redisService.instance = new redisService();
-        return redisService.instance as IRedisCommands;
+        return redisService.instance;
     }
 
     isInit = () => this.isInitialized;

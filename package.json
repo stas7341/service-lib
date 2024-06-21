@@ -1,7 +1,7 @@
 {
   "name": "@asmtechno/service-lib",
-  "version": "1.0.11",
-  "author": "Stas M.",
+  "version": "1.0.12",
+  "author": "Stas M. and Ziv B.",
   "description": "A common library to share functionality between microservices",
   "main": "./lib/cjs/index.js",
   "module": "./lib/index.js",

@@ -27,7 +27,7 @@ export class amqpService extends EventEmitter {
     private amqp: any;
     private reconnectStarted: boolean;
 
-    private static instance: any;
+    private static instance: amqpService;
     private isInitialized: boolean;
     protected constructor() {
         super();
