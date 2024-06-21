@@ -213,7 +213,7 @@ export class amqpService extends EventEmitter {
 
                     controller(msg, ch)
                         .then((returnCode) => {
-                            log('on ack msg', returnCode ? LogLevel.trace : LogLevel.trace);
+                            //log('on ack msg', returnCode ? LogLevel.trace : LogLevel.trace);
                             ch.ack(msg);
                         }).catch(err=> {
                         log("" + err, LogLevel.error);
