@@ -75,12 +75,12 @@ export class amqpService extends EventEmitter {
 
     reconnectSubscriber(exchange:string, routingKey:string, queueName: string, controller: handlingMessage,
                          options: {
-                             exchangeType: string,
+                             exchangeType?: string,
                              maxPriority?: number,
-                             reconnectOnClose: boolean,
-                             prefetch: number,
-                             options_noAck: boolean,
-                             options_durable: boolean} =
+                             reconnectOnClose?: boolean,
+                             prefetch?: number,
+                             options_noAck?: boolean,
+                             options_durable?: boolean} =
                              {exchangeType: "topic", reconnectOnClose: true, prefetch: 1, options_noAck: false, options_durable: true}
                          ) {
         if(this.isInitialized) {
@@ -150,12 +150,12 @@ export class amqpService extends EventEmitter {
 
     async subscribe(exchange:string, routingKey:string, queueName: string, controller: handlingMessageUid,
                     options: {
-                        exchangeType: string,
+                        exchangeType?: string,
                         maxPriority?: number,
-                        reconnectOnClose: boolean,
-                        prefetch: number,
-                        options_noAck: boolean,
-                        options_durable: boolean} =
+                        reconnectOnClose?: boolean,
+                        prefetch?: number,
+                        options_noAck?: boolean,
+                        options_durable?: boolean} =
                         {exchangeType: "topic", reconnectOnClose: true, prefetch: 1, options_noAck: false, options_durable: true}
                     ): Promise<any>{
         this.isInit();
@@ -223,6 +223,7 @@ export class amqpService extends EventEmitter {
                     noAck: options?.options_noAck || this?.config?.options_noAck || false
                 });
             });
+            return ch;
         });
     }
 

@@ -376,15 +376,15 @@ export class redisService extends EventEmitter implements IRedisCommands{
         return this.redisClient;
     }
 
-    async addFieldsToHash(...[key, value, fieldValue]: SingleFieldArguments | MultipleFieldsArguments): Promise<number> {
+    async addFieldsToHash(...[key, field, value]: SingleFieldArguments | MultipleFieldsArguments): Promise<number> {
         this.isInit();
 
         try {
-            const res = await this.redisClient.hSet(key, value as any, fieldValue as any);
-            log(`addItemToHash: ${key}`, LogLevel.trace, {field: value, value: fieldValue});
+            const res = await this.redisClient.hSet(key, field as any, value as any);
+            log(`addItemToHash: ${key}`, LogLevel.trace, {field: field, value: value});
             return res;
         } catch (err) {
-            log(`addItemToHash: ${key}`, LogLevel.error, {field: value, value: fieldValue});
+            log(`addItemToHash: ${key}`, LogLevel.error, {field: field, value: value});
             throw err;
         }
     }
