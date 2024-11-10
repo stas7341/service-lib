@@ -108,7 +108,7 @@ export class amqpService extends EventEmitter {
         return new Promise<boolean>((resolve) => {
             this.config = config;
 
-            if (this.config.username.length === 0 || this.config.password.length === 0 || this.config.host.length === 0) {
+            if (this?.config?.username?.length === 0 || this?.config?.password?.length === 0 || this?.config?.host?.length === 0) {
                 log('input parameters validation failed', LogLevel.error);
                 return resolve(false);
             }
