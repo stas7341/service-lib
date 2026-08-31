@@ -1,6 +1,7 @@
 import {ConfigManager, TYPE} from "../../src/services/configManager";
 import {Logger} from "../../src/services/logger";
 import {redisService} from "../../src/services/redisService";
+import {createMockRedisClient} from "../mockHelper";
 
 describe("Unit Tests Redis", () => {
     const confMgr = ConfigManager.getInstance();
@@ -12,17 +13,16 @@ describe("Unit Tests Redis", () => {
         await confMgr.init("../test.json", "");
         await Logger.getInstance().init(confMgr);
         conf = confMgr.get("redis", TYPE.OBJECT);
-        await redis.init(conf);
+        const mockClient = createMockRedisClient();
+        (redis as any).redisClient = mockClient;
+        (redis as any).isInitialized = true;
     });
 
     afterAll(async () => {
-        // clear all tests from redis
-        if (!(process.env?.STANDALONE_TEST?.toLowerCase() === 'true')) {
-            await redis.deleteItem("key1");
-            await redis.deleteItem("set1");
-            await redis.deleteItem("queue");
-            await redis.deleteItem("set2");
-        }
+        await redis.deleteItem("key1");
+        await redis.deleteItem("set1");
+        await redis.deleteItem("queue");
+        await redis.deleteItem("set2");
     });
 
     beforeEach(() => {

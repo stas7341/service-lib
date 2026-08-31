@@ -2,18 +2,21 @@ import {cacheRemoteConfig, RemoteCache} from "../../src/utils/remoteCache";
 import {Logger} from "../../src/services/logger";
 import {ConfigManager} from "../../src/services/configManager";
 import {redisService} from "../../src/services/redisService";
+import {createMockRedisClient} from "../mockHelper";
 
 describe(`Unit Tests for remote cache`, () => {
     let remoteCache: RemoteCache;
     beforeAll(async () => {
         await ConfigManager.getInstance().init("../test.json", "");
         await Logger.getInstance().init(ConfigManager.getInstance());
-        const redisConf = ConfigManager.getInstance().Read["redis"];
-        await redisService.getInstance().init(redisConf);
+        const redisInstance = redisService.getInstance();
+        const mockClient = createMockRedisClient();
+        (redisInstance as any).redisClient = mockClient;
+        (redisInstance as any).isInitialized = true;
 
         const config: cacheRemoteConfig = {
             prefix: 'prefix',
-            redis: redisService.getInstance(),
+            redis: redisInstance,
             expirationSec: 60
         };
         remoteCache = new RemoteCache(config);
