@@ -9,22 +9,23 @@ export interface cacheRemoteConfig {
     expirationSec: number
 }
 
-export class RemoteCache extends EventEmitter{
+export class RemoteCache extends EventEmitter {
     constructor(protected config: cacheRemoteConfig) {
         super();
-        if(!config.redis)
+        if (!config.redis)
             throw new Error("wrong parameters");
-        this.config.prefix = config.prefix ? `${config.prefix}:` : `${process.env.npm_package_name}:`;
+        const rawPrefix = config.prefix || process.env.npm_package_name || 'app';
+        this.config.prefix = rawPrefix.endsWith(':') ? rawPrefix : `${rawPrefix}:`;
         this.config.expirationSec = config.expirationSec ? config.expirationSec : 14400; // default 4 hours
     }
 
-    log = (msg: string, level: LogLevel, metadata?: {} | undefined) => {
+    log = (msg: string, level: LogLevel, metadata?: Record<string, any> | undefined) => {
         this.emit("log", msg, level, metadata);
     };
 
     getMultiOperator = () => this.config.redis.getClient().multi();
 
-    execMulti = async (multiOperator) => multiOperator.exec();
+    execMulti = async (multiOperator: any): Promise<any[]> => multiOperator.exec();
 
     private async setExpiration(key: string, ttl: number, mode?: "NX" | "XX" | "GT" | "LT") {
         return this.config.redis.setExpiration(key, ttl, mode).catch(err => {
@@ -33,10 +34,12 @@ export class RemoteCache extends EventEmitter{
         });
     }
 
-    getKeyWithPrefix = (key: TKeyTypes) => {
-        if (key.toString().startsWith(this.config.prefix))
-            return key;
-        return (this.config.prefix + key.toString()).toLowerCase();
+    getKeyWithPrefix = (key: TKeyTypes): string => {
+        const keyStr = key.toString();
+        if (keyStr.toLowerCase().startsWith(this.config.prefix.toLowerCase())) {
+            return keyStr;
+        }
+        return `${this.config.prefix}${keyStr}`;
     };
 
     async get(key: TKeyTypes) {
@@ -55,21 +58,21 @@ export class RemoteCache extends EventEmitter{
             });
     }
 
-    async set(key: TKeyTypes, value: TValueTypes, dynamicTtlSec?: number, multiOperator?) {
+    async set(key: TKeyTypes, value: TValueTypes, dynamicTtlSec?: number, multiOperator?: any): Promise<boolean> {
         const prefixedKey = this.getKeyWithPrefix(key);
 
-        if(multiOperator) {
+        if (multiOperator) {
             multiOperator.set(prefixedKey, value);
             multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
-            return;
+            return true;
         }
 
-        multiOperator = this.getMultiOperator();
-        multiOperator.set(prefixedKey, value);
-        multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
+        const op = this.getMultiOperator();
+        op.set(prefixedKey, value);
+        op.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
 
-        const result: any[] = await this.execMulti(multiOperator);
-        return !result?.includes(false);
+        const result: any[] = await this.execMulti(op);
+        return Array.isArray(result) && result.length > 0 && !result.includes(false);
     }
 
     async getAllItemsFromSet(key: TKeyTypes) {
@@ -79,21 +82,21 @@ export class RemoteCache extends EventEmitter{
         });
     }
 
-    async addItemToSet(key: TKeyTypes, value: string | string[], dynamicTtlSec?: number, multiOperator?) {
+    async addItemToSet(key: TKeyTypes, value: string | string[], dynamicTtlSec?: number, multiOperator?: any): Promise<boolean> {
         const prefixedKey = this.getKeyWithPrefix(key);
 
-        if(multiOperator) {
+        if (multiOperator) {
             multiOperator.sAdd(prefixedKey, value);
             multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
-            return;
+            return true;
         }
 
-        multiOperator = this.getMultiOperator();
-        multiOperator.sAdd(prefixedKey, value);
-        multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
+        const op = this.getMultiOperator();
+        op.sAdd(prefixedKey, value);
+        op.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
 
-        const result: any[] = await this.execMulti(multiOperator);
-        return !result?.includes(false);
+        const result: any[] = await this.execMulti(op);
+        return Array.isArray(result) && result.length > 0 && !result.includes(false);
     }
 
     async removeItemFromSet(key: TKeyTypes, value: string | string[]) {
@@ -110,29 +113,34 @@ export class RemoteCache extends EventEmitter{
         });
     }
 
-    async addPairToHash(key: TKeyTypes, fieldName: TValueTypes, fieldValue: TValueTypes, dynamicTtlSec?: number, multiOperator?) {
+    async addPairToHash(key: TKeyTypes, fieldName: TValueTypes, fieldValue: TValueTypes, dynamicTtlSec?: number, multiOperator?: any): Promise<boolean> {
         const prefixedKey = this.getKeyWithPrefix(key);
 
-        if(multiOperator) {
+        if (multiOperator) {
             multiOperator.hSet(prefixedKey, this.convertToString(fieldName), fieldValue);
             multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
-            return;
+            return true;
         }
 
-        multiOperator = this.getMultiOperator();
-        multiOperator.hSet(prefixedKey, this.convertToString(fieldName), fieldValue);
-        multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
+        const op = this.getMultiOperator();
+        op.hSet(prefixedKey, this.convertToString(fieldName), fieldValue);
+        op.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
 
-        const result: any[] = await this.execMulti(multiOperator);
-        return !result?.includes(false);
+        const result: any[] = await this.execMulti(op);
+        return Array.isArray(result) && result.length > 0 && !result.includes(false);
     }
 
-    async addPairsToHash(key: TKeyTypes, pairs: TPairTypes, dynamicTtlSec?: number, multiOperator?) {
+    async addPairsToHash(key: TKeyTypes, pairs: TPairTypes, dynamicTtlSec?: number, multiOperator?: any): Promise<boolean> {
         const prefixedKey = this.getKeyWithPrefix(key);
 
         const convertKeysToStrings = (input: TPairTypes): TPairTypes => {
             if (Array.isArray(input)) {
-                return input.map(item => this.convertToString(item)) as TPairTypes;
+                return input.map(item => {
+                    if (Array.isArray(item) && item.length === 2) {
+                        return [this.convertToString(item[0]), item[1]] as [TValueTypes, TValueTypes];
+                    }
+                    return this.convertToString(item);
+                }) as TPairTypes;
             } else if (input instanceof Map) {
                 const newMap = new Map();
                 input.forEach((value, key) => {
@@ -142,27 +150,27 @@ export class RemoteCache extends EventEmitter{
             } else if (typeof input === 'object' && input !== null) {
                 // If the input is an object, create a new object with converted keys
                 const newObj: Record<string, TValueTypes> = {};
-                for (const [key, value] of Object.entries(input)) {
-                    newObj[this.convertToString(key)] = value;
+                for (const [k, v] of Object.entries(input)) {
+                    newObj[this.convertToString(k)] = v;
                 }
                 return newObj as TPairTypes;
             } else {
                 return input;
             }
-        }
+        };
 
-        if(multiOperator) {
+        if (multiOperator) {
             multiOperator.hSet(prefixedKey, convertKeysToStrings(pairs));
             multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
-            return;
+            return true;
         }
 
-        multiOperator = this.getMultiOperator();
-        multiOperator.hSet(prefixedKey, convertKeysToStrings(pairs));
-        multiOperator.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
+        const op = this.getMultiOperator();
+        op.hSet(prefixedKey, convertKeysToStrings(pairs));
+        op.expire(prefixedKey.toString(), dynamicTtlSec ?? this.config.expirationSec);
 
-        const result: any[] = await this.execMulti(multiOperator);
-        return !result?.includes(false);
+        const result: any[] = await this.execMulti(op);
+        return Array.isArray(result) && result.length > 0 && !result.includes(false);
     }
 
     async removePair(key: TKeyTypes, field: TKeyTypes) {

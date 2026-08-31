@@ -1,7 +1,7 @@
 {
   "name": "@asmtechno/service-lib",
-  "version": "1.0.16",
-  "author": "Stas M. and Ziv B.",
+  "version": "1.0.17",
+  "author": "Stas M.",
   "description": "A common library to share functionality between microservices",
   "main": "./lib/cjs/index.js",
   "module": "./lib/index.js",
@@ -13,16 +13,22 @@
     "src": "src"
   },
   "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+      "@typescript-eslint"
+    ],
     "env": {
-      "browser": true,
-      "node": true
+      "node": true,
+      "jest": true
     }
   },
   "scripts": {
     "build": "rm -rf ./lib && tsc --alwaysStrict -p tsconfig.json && tsc -p tsconfig-cjs.json",
+    "lint": "eslint src/ --ext .ts",
     "prepublishOnly": "npm run build && npm run test",
     "load-modules": "npm i --also-dev",
     "npm_login": "npm login --scope=@asmtechno --auth-type=legacy --registry=\"https://registry.npmjs.org\"",
+    "publish_access": "npm publish --scope=@asmtechno --auth-type=legacy --access public --registry=\"https://registry.npmjs.org\"",
     "publis_access": "npm publish --scope=@asmtechno --auth-type=legacy --access public --registry=\"https://registry.npmjs.org\"",
     "packaging": "npm run build && npm pack",
     "local_publish": "npm link",

@@ -51,29 +51,37 @@ export class amqpService extends EventEmitter {
         this.emit("log", msg, level, metadata);
     }
 
-    async close() {
+    async close(): Promise<void> {
         this.isInitialized = false;
-        await this?.amqp?.close();
-        delete this?.amqp;
+        if (this.amqp) {
+            try {
+                await new Promise<void>((resolve) => {
+                    this.amqp.close(() => resolve());
+                });
+            } catch (e) {
+                // ignore close errors
+            }
+            this.amqp = undefined;
+        }
     }
 
     reconnect(config: amqpConfig) {
-        if(this.reconnectStarted) {
+        if (this.reconnectStarted) {
             log("already started to reconnect..", LogLevel.trace);
             return;
         }
 
         this.reconnectStarted = true;
-        if(this.amqp) {
+        if (this.amqp) {
             this.close();
         }
         setTimeout(async () => {
-                    return this.init(config);
-                }, TIMEOUT);
+            return this.init(config);
+        }, TIMEOUT);
         log("try to reconnect..", LogLevel.trace);
     }
 
-    reconnectSubscriber(exchange:string, routingKey:string, queueName: string, controller: handlingMessage,
+    reconnectSubscriber(exchange: string, routingKey: string, queueName: string, controller: handlingMessage,
                          options: {
                              exchangeType?: string,
                              maxPriority?: number,
@@ -83,15 +91,14 @@ export class amqpService extends EventEmitter {
                              options_durable?: boolean} =
                              {exchangeType: "topic", reconnectOnClose: true, prefetch: 1, options_noAck: false, options_durable: true}
                          ) {
-        if(this.isInitialized) {
+        if (this.isInitialized) {
             setTimeout(async () => {
                 await this.subscribe(exchange, routingKey, queueName, controller, options).catch((err) => {
-                    this.reconnectSubscriber(exchange, routingKey, queueName, controller,options);
+                    this.reconnectSubscriber(exchange, routingKey, queueName, controller, options);
                 });
             }, TIMEOUT);
             log("try to resubscribe..", LogLevel.trace, {exchange, routingKey, queueName, controller, options});
-        }
-        else {
+        } else {
             setTimeout(() => {
                 this.reconnectSubscriber(exchange, routingKey, queueName, controller, options);
             }, TIMEOUT);
@@ -99,7 +106,7 @@ export class amqpService extends EventEmitter {
     }
 
     async init(config: amqpConfig): Promise<boolean> {
-        if(this.isInitialized) {
+        if (this.isInitialized) {
             log("already initialized..", LogLevel.trace);
             return true;
         }
@@ -118,24 +125,22 @@ export class amqpService extends EventEmitter {
                 return resolve(true);
             }
 
-            const amqpHost = `amqp://${this.config.username ||
-            'guest'}:${this.config.password ||
-            'guest'}@${this.config.host}`;
-            this.amqpLib.connect(amqpHost, async (err, conn) => {
+            const amqpHost = `amqp://${this.config.username || 'guest'}:${this.config.password || 'guest'}@${this.config.host}`;
+            this.amqpLib.connect(amqpHost, async (err: any, conn: any) => {
                 if (err !== null) {
-                    log(err, LogLevel.error);
+                    log(err?.message || err, LogLevel.error);
                     await this.reconnect(config);
                     return resolve(false);
                 }
 
-                conn.on("error", (err) => {
-                    if (err.message !== "Connection closing") {
-                        log(err.message, LogLevel.error);
+                conn.on("error", (err: any) => {
+                    if (err?.message !== "Connection closing") {
+                        log(err?.message || err, LogLevel.error);
                     }
                 });
                 conn.on("close", () => {
                     log("reconnecting...", LogLevel.trace);
-                    if(this.isInitialized) {
+                    if (this.isInitialized) {
                         this.reconnect(config);
                     }
                 });
@@ -148,7 +153,7 @@ export class amqpService extends EventEmitter {
         });
     }
 
-    async subscribe(exchange:string, routingKey:string, queueName: string, controller: handlingMessageUid,
+    async subscribe(exchange: string, routingKey: string, queueName: string, controller: handlingMessageUid,
                     options: {
                         exchangeType?: string,
                         maxPriority?: number,
@@ -157,7 +162,7 @@ export class amqpService extends EventEmitter {
                         options_noAck?: boolean,
                         options_durable?: boolean} =
                         {exchangeType: "topic", reconnectOnClose: true, prefetch: 1, options_noAck: false, options_durable: true}
-                    ): Promise<any>{
+                    ): Promise<any> {
         this.isInit();
         log(`Subscribe ${exchange}, ${routingKey}, ${queueName}`, LogLevel.trace, options);
 
@@ -168,62 +173,78 @@ export class amqpService extends EventEmitter {
             throw new Error('wrong parameters: exchange and routing key');
 
         if (options.maxPriority && options.maxPriority > 10) {
-            throw new Error('maxPriority should be less or equal to 10')
+            throw new Error('maxPriority should be less or equal to 10');
         }
 
-        this.amqp.createChannel((err, ch) => {
-            if (err !== null) {
-                log(err, LogLevel.error);
-                return;
-            }
-
-            if(exchange !== "") {
-                ch.assertExchange(exchange, options.exchangeType, {
-                    durable: (options?.options_durable || this?.config?.options_durable || true),
-                    maxPriority: options?.maxPriority
-                });
-            }
-
-            ch.on("error", (err) => {
-                log(err.message, LogLevel.error);
-                return;
-            });
-            ch.on("close", () => {
-                if(options.reconnectOnClose) {
-                    log("subscribe channel reconnecting...", LogLevel.trace);
-                    return this.reconnectSubscriber(exchange, routingKey, queueName, controller, options);
-                }
-            });
-
-            ch.assertQueue(queueName, { durable: this.config.options_durable, maxPriority: options.maxPriority}, (error, q) => {
-                if (error !== null) {
-                    log("failed", LogLevel.error, error);
+        return new Promise((resolve, reject) => {
+            this.amqp.createChannel((err: any, ch: any) => {
+                if (err !== null) {
+                    log(err?.message || err, LogLevel.error);
+                    return reject(err);
                 }
 
-                if(exchange !== "") {
-                    ch.bindQueue(q.queue, exchange, routingKey);
-                    log("bind to queue: " + q.queue, LogLevel.trace);
-                }
-
-                const prefetch = options?.prefetch || this?.config?.prefetch || 1;
-                ch.prefetch(Number(prefetch));
-
-                ch.consume(q.queue, async(msg) => {
-                    // const messageBody = msg.content.toString().trim();
-
-                    controller(msg, ch)
-                        .then((returnCode) => {
-                            //log('on ack msg', returnCode ? LogLevel.trace : LogLevel.trace);
-                            ch.ack(msg);
-                        }).catch(err=> {
-                        log("" + err, LogLevel.error);
-                        throw new Error(err);
+                if (exchange !== "") {
+                    ch.assertExchange(exchange, options.exchangeType || "topic", {
+                        durable: (options?.options_durable !== undefined ? options.options_durable : (this?.config?.options_durable !== undefined ? this.config.options_durable : true)),
+                        maxPriority: options?.maxPriority
                     });
-                }, {
-                    noAck: options?.options_noAck || this?.config?.options_noAck || false
+                }
+
+                ch.on("error", (err: any) => {
+                    log(err?.message || err, LogLevel.error);
+                });
+                ch.on("close", () => {
+                    if (options.reconnectOnClose) {
+                        log("subscribe channel reconnecting...", LogLevel.trace);
+                        return this.reconnectSubscriber(exchange, routingKey, queueName, controller as any, options);
+                    }
+                });
+
+                ch.assertQueue(queueName, {
+                    durable: options?.options_durable !== undefined ? options.options_durable : (this?.config?.options_durable !== undefined ? this.config.options_durable : true),
+                    maxPriority: options.maxPriority
+                }, (error: any, q: any) => {
+                    if (error !== null) {
+                        log("failed to assert queue", LogLevel.error, error);
+                        return reject(error);
+                    }
+
+                    if (exchange !== "") {
+                        ch.bindQueue(q.queue, exchange, routingKey);
+                        log("bind to queue: " + q.queue, LogLevel.trace);
+                    }
+
+                    const prefetch = options?.prefetch || this?.config?.prefetch || 1;
+                    ch.prefetch(Number(prefetch));
+
+                    ch.consume(q.queue, async (msg: any) => {
+                        if (!msg) {
+                            log("amqp consumer cancelled by server", LogLevel.warn);
+                            return;
+                        }
+
+                        try {
+                            const returnCode = await controller(msg, ch);
+                            if (returnCode !== false) {
+                                ch.ack(msg);
+                            } else {
+                                ch.nack(msg);
+                            }
+                        } catch (err: any) {
+                            log("amqp controller error: " + (err?.message || err), LogLevel.error);
+                            try {
+                                ch.nack(msg, false, true);
+                            } catch (nackErr) {
+                                // ignore
+                            }
+                        }
+                    }, {
+                        noAck: options?.options_noAck || this?.config?.options_noAck || false
+                    });
+
+                    return resolve(ch);
                 });
             });
-            return ch;
         });
     }
 
@@ -236,7 +257,8 @@ export class amqpService extends EventEmitter {
                         return reject(err);
                     }
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return reject(error);
                     });
 
@@ -258,6 +280,7 @@ export class amqpService extends EventEmitter {
                         ch.checkQueue(queueName, (err) => {
                             if (err !== null) {
                                 log(err, LogLevel.error);
+                                channelClose(ch);
                                 return reject(err);
                             }
 
@@ -271,6 +294,7 @@ export class amqpService extends EventEmitter {
                         ch.checkExchange(exchange, (err) => {
                             if (err !== null) {
                                 log(err, LogLevel.error);
+                                channelClose(ch);
                                 return reject(err);
                             }
 
@@ -360,13 +384,14 @@ export class amqpService extends EventEmitter {
                     if (err !== null) return reject(err);
                     ch.on('error', error => {
                         log("failed", LogLevel.error, error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return reject(error);
                     });
                     ch.checkQueue(queueName, (err, queue_info) => {
+                        channelClose(ch);
                         if (err !== null) {
                             return reject(err);
                         }
-                        channelClose(ch);
                         return resolve(queue_info.messageCount);
                     });
                 });
@@ -387,15 +412,19 @@ export class amqpService extends EventEmitter {
                 this.amqp.createChannel((err, ch) => {
                     if (err !== null) return reject(err);
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return reject(error);
                     });
                     ch.prefetch(prefetch);
                     ch.get(queueName, {noAck: true}, (err, msg) => {
-                        if (err !== null || msg === false) {
+                        channelClose(ch);
+                        if (err !== null) {
                             return reject(err);
                         }
-                        channelClose(ch);
+                        if (msg === false) {
+                            return resolve(null as any);
+                        }
                         return resolve(msg.content.toString().trim());
                     });
                 });
@@ -416,14 +445,15 @@ export class amqpService extends EventEmitter {
                 this.amqp.createChannel((err, ch) => {
                     if (err !== null) return resolve(false);
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return resolve(false);
                     });
                     ch.checkQueue(queueName, (err) => {
+                        channelClose(ch);
                         if (err !== null) {
                             return resolve(false);
                         }
-                        channelClose(ch);
                         return resolve(true);
                     });
                 });
@@ -445,14 +475,15 @@ export class amqpService extends EventEmitter {
                 this.amqp.createChannel((err, ch) => {
                     if (err !== null) return resolve(false);
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return resolve(false);
                     });
                     ch.assertQueue(queueName, {durable: this.config.options_durable, maxPriority}, (error, q) => {
+                        channelClose(ch);
                         if (error !== null) {
                             return resolve(false);
                         }
-                        channelClose(ch);
                         return resolve(true);
                     });
                 });
@@ -474,13 +505,14 @@ export class amqpService extends EventEmitter {
                     if (err !== null) return resolve(false);
                     ch.on('error', error => {
                         log("failed", LogLevel.error, error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return resolve({});
                     });
                     ch.checkQueue(queueName, (error, info) => {
+                        channelClose(ch);
                         if (error !== null) {
                             return resolve({});
                         }
-                        channelClose(ch);
                         return resolve(info);
                     });
                 });
@@ -500,14 +532,15 @@ export class amqpService extends EventEmitter {
                 this.amqp.createChannel((err, ch) => {
                     if (err !== null) return resolve(false);
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
-                        return reject(error);
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
+                        return resolve(false);
                     });
                     ch.purgeQueue(queueName, (error) => {
-                        if (error !== null) {
-                            return reject(error);
-                        }
                         channelClose(ch);
+                        if (error !== null) {
+                            return resolve(false);
+                        }
                         return resolve(true);
                     });
                 });
@@ -530,14 +563,15 @@ export class amqpService extends EventEmitter {
                         return resolve(false);
                     }
                     ch.on('error', error => {
-                        log("" + error, LogLevel.error)
+                        log("" + error, LogLevel.error);
+                        try { channelClose(ch); } catch (e) { /* ignore */ }
                         return resolve(false);
                     });
                     ch.deleteQueue(queueName, (error) => {
+                        channelClose(ch);
                         if (error !== null) {
                             return resolve(false);
                         }
-                        channelClose(ch);
                         return resolve(true);
                     });
                 });
@@ -547,3 +581,6 @@ export class amqpService extends EventEmitter {
         });
     }
 }
+
+export const AmqpService = amqpService;
+export type AmqpConfig = amqpConfig;

@@ -37,7 +37,12 @@ export class redisService extends EventEmitter implements IRedisCommands{
         return redisService.instance;
     }
 
-    isInit = () => this.isInitialized;
+    isInit = (): boolean => {
+        if (!this.isInitialized || !this.redisClient) {
+            throw new Error(`Service ${this.constructor.name} is not initialized.`);
+        }
+        return true;
+    };
 
     log(msg: string, level: LogLevel = LogLevel.info, metadata?: any) {
         this.emit("log", msg, level, metadata);
@@ -45,6 +50,10 @@ export class redisService extends EventEmitter implements IRedisCommands{
 
     async init(config: redisConfig): Promise<boolean> {
         try {
+            if (this.redisClient) {
+                await this.stop();
+            }
+
             const {user: username, password, host, port, connect_timeout = 30000} = config;
 
             this.config = {
@@ -61,8 +70,8 @@ export class redisService extends EventEmitter implements IRedisCommands{
 
             const redisClient = createClient(this.config)
                 .on("error", (err) => {
-                    log("redisClient on error: " + err, LogLevel.error);
-                    throw err;
+                    log("redisClient on error: " + (err?.message || err), LogLevel.error);
+                    this.emit("error", err);
                 })
                 .on("ready", () => {
                     log("redisClient ready", LogLevel.info);
@@ -72,6 +81,7 @@ export class redisService extends EventEmitter implements IRedisCommands{
                     log("redisClient reconnecting", LogLevel.info);
                 });
             this.redisClient = await redisClient.connect() as any;
+            this.isInitialized = true;
             return true;
         } catch (err) {
             log("failed to init", LogLevel.error, err);
@@ -80,8 +90,20 @@ export class redisService extends EventEmitter implements IRedisCommands{
         }
     }
 
-    async stop() {
-        await this.redisClient.disconnect();
+    async stop(): Promise<void> {
+        if (this.redisClient) {
+            try {
+                await this.redisClient.quit();
+            } catch (e) {
+                try {
+                    await this.redisClient.disconnect();
+                } catch (err) {
+                    // Ignore disconnect errors on shutdown
+                }
+            }
+            this.redisClient = undefined as any;
+        }
+        this.isInitialized = false;
     }
 
     async addItem(key: string | Buffer, value: string | Buffer | number, options?: SetOptions): Promise<boolean> {
@@ -177,7 +199,7 @@ export class redisService extends EventEmitter implements IRedisCommands{
                  * an error. So you will have err === null and results === null
                  */
                 log("execTransaction not performed, changed key while processing", LogLevel.warn, {uid});
-                throw new Error("execution of MULTI command was snot performed");
+                throw new Error("execution of MULTI command was not performed");
             }
             log("execTransaction end", LogLevel.trace, {uid, results});
             return results;
@@ -251,11 +273,17 @@ export class redisService extends EventEmitter implements IRedisCommands{
         this.isInit();
 
         try {
-            const member: ZMember = {
-                score: priority,
-                value: item.toString()
-            };
-            const res = await this.redisClient.zAdd(queueName, member);
+            let res: any;
+            if (Array.isArray(item)) {
+                const members: ZMember[] = item.map(v => ({ score: priority, value: v.toString() }));
+                res = await this.redisClient.zAdd(queueName, members);
+            } else {
+                const member: ZMember = {
+                    score: priority,
+                    value: item.toString()
+                };
+                res = await this.redisClient.zAdd(queueName, member);
+            }
             log("addItemToZQ:", LogLevel.trace, res);
             return true;
         } catch (err) {
@@ -380,7 +408,9 @@ export class redisService extends EventEmitter implements IRedisCommands{
         this.isInit();
 
         try {
-            const res = await this.redisClient.hSet(key, field as any, value as any);
+            const res = value !== undefined
+                ? await this.redisClient.hSet(key, field as any, value as any)
+                : await this.redisClient.hSet(key, field as any);
             log(`addItemToHash: ${key}`, LogLevel.trace, {field: field, value: value});
             return res;
         } catch (err) {
@@ -389,15 +419,15 @@ export class redisService extends EventEmitter implements IRedisCommands{
         }
     }
 
-    async addFieldToHashIfNotExist(key: RedisCommandArgument, value: RedisCommandArgument, fieldValue: RedisCommandArgument) {
+    async addFieldToHashIfNotExist(key: RedisCommandArgument, field: RedisCommandArgument, value: RedisCommandArgument): Promise<boolean> {
         this.isInit();
 
         try {
-            const res = await this.redisClient.hSetNX(key, value, fieldValue);
-            log(`addFieldToHashIfNotExist: ${key}`, LogLevel.trace, {field: value, value: fieldValue});
+            const res = await this.redisClient.hSetNX(key, field, value);
+            log(`addFieldToHashIfNotExist: ${key}`, LogLevel.trace, {field: field, value: value});
             return res;
         } catch (err) {
-            log(`addFieldToHashIfNotExist: ${key}`, LogLevel.error, {field: value, value: fieldValue});
+            log(`addFieldToHashIfNotExist: ${key}`, LogLevel.error, {field: field, value: value});
             throw err;
         }
     }
@@ -562,5 +592,8 @@ export class redisService extends EventEmitter implements IRedisCommands{
         }
     }
 }
+
+export const RedisService = redisService;
+export type RedisConfig = redisConfig;
 
 

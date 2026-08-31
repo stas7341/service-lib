@@ -71,7 +71,7 @@ export interface IRedisCommands {
 
     addFieldsToHash(...[key, field, Value]: SingleFieldArguments | MultipleFieldsArguments): Promise<number>;
 
-    addFieldToHashIfNotExist(key: RedisCommandArgument, value: RedisCommandArgument, fieldValue: RedisCommandArgument): Promise<boolean>;
+    addFieldToHashIfNotExist(key: RedisCommandArgument, field: RedisCommandArgument, value: RedisCommandArgument): Promise<boolean>;
 
     removeFieldFromHash(key: RedisCommandArgument, field: RedisCommandArgument | Array<RedisCommandArgument>): Promise<number>;
 

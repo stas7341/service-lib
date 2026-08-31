@@ -1,202 +1,229 @@
-"use strict";
-import {GeneralUtils} from "../utils/general";
-const winston = require('winston');
+import { GeneralUtils } from "../utils/general";
+import winston from 'winston';
 import os from 'os';
 import fs from 'fs';
 
 export enum LogLevel {
-    error, // the log level that should be used when the application hits an issue
-    warn, // the log level that indicates that something unexpected happened in the application
-    info, // the standard log level indicating that something happened
-    debug, // less granular compared to the TRACE level, but it is more than you will need in everyday use
-    trace// very verbose and inside the third-party libraries that you use.
+    error = 0, // the log level that should be used when the application hits an issue
+    warn = 1,  // the log level that indicates that something unexpected happened in the application
+    info = 2,  // the standard log level indicating that something happened
+    debug = 3, // less granular compared to the TRACE level, but it is more than you will need in everyday use
+    trace = 4  // very verbose and inside the third-party libraries that you use.
 }
 
+const WINSTON_LEVELS = {
+    error: 0,
+    warn: 1,
+    info: 2,
+    debug: 3,
+    trace: 4
+};
+
 export interface LogQueryOptions {
-    from: Date,
-    until: Date,
-    limit?: 10,
-    start?: 0,
-    order?: 'desc',
-    fields?: string[]
+    from: Date;
+    until: Date;
+    limit?: number;
+    start?: number;
+    order?: 'desc' | 'asc';
+    fields?: string[];
 }
 
 export interface LoggerConfig {
-    Transports: string[],
-    prefix?: string,
-    FileDir?: string,
-    FileName?: string,
-    level?: string,
-    max_msg_len?: number
+    Transports: string[];
+    prefix?: string;
+    FileDir?: string;
+    FileName?: string;
+    level?: string;
+    max_msg_len?: number;
+    maxSize?: number;
+    maxFiles?: number;
 }
 
-export class Logger{
-    private _logger;
+export class Logger {
+    private _logger: winston.Logger;
     private lastError: string = "";
-    private reconnectStarted: boolean;
-    getLastError() { return this.lastError; }
-    private conf: any;
-    private static instance: any;
+    getLastError(): string { return this.lastError; }
+    private conf: LoggerConfig = { Transports: ["Console"], max_msg_len: 4096 };
+    private static instance: Logger;
     private isInitialized: boolean;
+
     protected constructor() {
-        this._logger = winston.createLogger({levels: LogLevel});
+        this._logger = winston.createLogger({
+            levels: WINSTON_LEVELS
+        });
         this.isInitialized = false;
-        this.reconnectStarted = false;
     }
-    isInit = () => this.isInitialized;
 
+    isInit = (): boolean => this.isInitialized;
 
-    async init(config) : Promise<boolean> {
+    async init(config: any): Promise<boolean> {
         try {
-            this.conf = config;
-            const transports = config["Transports"] as string[] || [];
-            const prefix = config["prefix"] || process.pid.toString();
+            if (config && typeof config.get === 'function') {
+                config = config.get("Logger", 3) || config.getAll();
+            }
+            this.conf = config || { Transports: ["Console"], max_msg_len: 4096 };
+            const transports = (this.conf.Transports as string[]) || ["Console"];
             this.setTransports(transports);
             this.isInitialized = true;
             return true;
         } catch (err) {
-            console.log(err);
+            console.error("Logger init failed:", err);
             return false;
         }
     }
 
     /**
      * Get a singleton of the logger to serve the whole system.
-     * @param: configuration - an external configuration object. Default will take the log configuration from the configuration service.
      */
     static getInstance(): Logger {
-        if (!this.instance)
+        if (!this.instance) {
             this.instance = new Logger();
-        return <Logger>this.instance;
+        }
+        return this.instance;
     }
 
-    static customFileFormatterJson(options) {
-        return JSON.stringify({
+    static customFileFormatterJson(options: any): string {
+        return GeneralUtils.JSONStringify({
             name: options.label,
             hostname: os.hostname(),
-            level: options.level.toUpperCase(),
-            msg: (undefined !== options.message ? options.message : ''),
+            level: options.level ? options.level.toUpperCase() : 'INFO',
+            msg: options.message !== undefined ? options.message : '',
             pid: process.pid.toString(),
-            time: options.timestamp(),
+            time: typeof options.timestamp === 'function' ? options.timestamp() : options.timestamp,
             meta: options.meta
         });
     }
 
-    static customFileFormatterTimeStamp(options) {
-        // Return string will be passed to logger.
-        return options.timestamp() + ' [' + options.level.toUpperCase() + '] ' + (undefined !== options.message ? options.message : '') +
-            (options.meta && Object.keys(options.meta).length ? '\n\t' + JSON.stringify(options.meta) : '');
+    static customFileFormatterTimeStamp(options: any): string {
+        const time = typeof options.timestamp === 'function' ? options.timestamp() : options.timestamp;
+        const level = options.level ? options.level.toUpperCase() : 'INFO';
+        const msg = options.message !== undefined ? options.message : '';
+        const meta = options.meta && Object.keys(options.meta).length ? '\n\t' + GeneralUtils.JSONStringify(options.meta) : '';
+        return `${time} [${level}] ${msg}${meta}`;
     }
 
-    static winstonCustomFileFormatter(options: {label, level, message, timestamp, meta}) {
-        // Return string will be passed to logger.
-        return winston.format.printf(({label, level, message, timestamp, meta}) => {
+    static winstonCustomFileFormatter(options: { label?: string; level?: string; message?: any; timestamp?: any; meta?: any }) {
+        return winston.format.printf(({ label, level, message, timestamp, meta }) => {
             let customFormatter = `${timestamp} [${level}] `;
             customFormatter = customFormatter + (undefined !== message ? message : '');
-            customFormatter = customFormatter + (meta && Object.keys(meta).length ? '\n\t' + JSON.stringify(meta) : '')
+            customFormatter = customFormatter + (meta && Object.keys(meta).length ? '\n\t' + GeneralUtils.JSONStringify(meta) : '');
             return customFormatter;
         });
     }
 
-
     /**
      * Logs the message and the metadata with the given log level.
-     * @param: level - The message log level (LogLevel enum)
-     * @param: message - Interpolated message to log. Example: 'test message %s', 'my string'.
-     * @param: metadata - An external info to log with the message.
+     * @param message - Interpolated message to log.
+     * @param level - The message log level (LogLevel enum)
+     * @param metadata - An external info to log with the message.
      */
-    log(message: any, level: LogLevel = LogLevel.trace, metadata?: {}) {
+    log(message: any, level: LogLevel = LogLevel.trace, metadata?: any): void {
         try {
-            this.isInit();
-
             if (level === LogLevel.error) {
-                this.lastError = message;
+                this.lastError = typeof message === 'object' ? GeneralUtils.JSONStringify(message) : String(message);
             }
 
-            if (message === undefined)
+            if (message === undefined) {
                 return;
-            if (typeof metadata === "string") {
-                metadata = {message: metadata};
             }
-            this._logger.log(LogLevel[level], message, metadata);
+
+            if (typeof metadata === "string") {
+                metadata = { message: metadata };
+            }
+
+            const levelName = LogLevel[level] || 'trace';
+            this._logger.log(levelName, message, metadata);
         } catch (e) {
-            console.log(e);
+            console.error("Logger log error:", e);
         }
     }
 
-    /**
-     * Stream the logs back .
-     */
-    async streamingLog() {
-        await this._logger.stream({start: -1}).on('log');
+    error(message: any, metadata?: any): void {
+        this.log(message, LogLevel.error, metadata);
+    }
+
+    warn(message: any, metadata?: any): void {
+        this.log(message, LogLevel.warn, metadata);
+    }
+
+    info(message: any, metadata?: any): void {
+        this.log(message, LogLevel.info, metadata);
+    }
+
+    debug(message: any, metadata?: any): void {
+        this.log(message, LogLevel.debug, metadata);
+    }
+
+    trace(message: any, metadata?: any): void {
+        this.log(message, LogLevel.trace, metadata);
     }
 
     /**
-     * Handle an event fired by the logger and sending it to the caller.
+     * Stream the logs back.
      */
-    handle() {
-        this.isInit();
-        return new Promise<any>((resolve, reject) => {
-            this._logger.on('error', function (err) {
+    async streamingLog(): Promise<any> {
+        return this._logger.stream({ start: -1 });
+    }
+
+    /**
+     * Handle an event fired by the logger and sending it to the caller without leaking listeners.
+     */
+    handle(): Promise<any> {
+        return new Promise<any>((resolve) => {
+            const onError = (err: any) => {
+                this._logger.removeListener('logging', onLogging);
                 resolve(err);
-            });
-            this._logger.on('logging', function (transport, level, msg, meta) {
-                // [msg] and [meta] have now been logged at [level] to [transport]
-                resolve({ level: level, msg: msg, meta: meta });
-            });
+            };
+            const onLogging = (transport: any, level: any, msg: any, meta: any) => {
+                this._logger.removeListener('error', onError);
+                resolve({ level, msg, meta });
+            };
+            this._logger.once('error', onError);
+            this._logger.once('logging', onLogging);
         });
     }
 
     /**
-     * Query the log with a given options.
-     * @param: options - LogQueryOptions.
+     * Query the log with given options.
+     * @param options - LogQueryOptions.
      */
-    async query(options: LogQueryOptions) {
-        this.isInit();
-        try {
-            await this._logger.query(options);
-        } catch (ex) {
-            throw ex;
-        }
+    async query(options: LogQueryOptions): Promise<any> {
+        return new Promise((resolve, reject) => {
+            (this._logger as any).query(options, (err: any, results: any) => {
+                if (err) reject(err);
+                else resolve(results);
+            });
+        });
     }
 
-    async initConfig(config: LoggerConfig) {
-        try {
-            if (!config.Transports.length) {
-                console.log(`missed Transports configuration!!! no logger init`);
-                return;
-            }
-            this.conf = config;
-            this.setTransports(this.conf.Transports);
-            this.isInitialized = true;
-            return true;
-        } catch (err) {
-            console.log(err);
-            return false;
-        }
+    async initConfig(config: LoggerConfig): Promise<boolean> {
+        return this.init(config);
     }
 
     private setTransports(transports: string[]) {
         this._logger.clear();
-        const {
-            prefix = process.pid.toString(),
-            level = 'info'
-        } = this.conf
-        const options = {label: prefix, format: 'YYYY-MM-DD HH:mm:ss', level};
-        transports.map(tr => {
+        const prefix = this.conf.prefix || process.pid.toString();
+        const level = this.conf.level || 'info';
+        const options = { label: prefix, format: 'YYYY-MM-DD HH:mm:ss', level };
+
+        for (const tr of transports) {
             switch (tr.toLowerCase()) {
                 case "console":
                     this.addConsoleTransport(options);
                     break;
-                case "file":
-                    const {FileDir: dir = './log/', FileName: filename = 'service.log', maxSize, maxFiles} = this.conf;
-                    this.addFileTransport({dir, filename, maxSize, maxFiles}, options);
+                case "file": {
+                    const dir = this.conf.FileDir || './log/';
+                    const filename = this.conf.FileName || 'service.log';
+                    const maxSize = this.conf.maxSize;
+                    const maxFiles = this.conf.maxFiles;
+                    this.addFileTransport({ dir, filename, maxSize, maxFiles }, options);
                     break;
+                }
             }
-        })
+        }
     }
 
-    private addConsoleTransport(options?: { label?: string, format?: string, level?: string }) {
+    private addConsoleTransport(options?: { label?: string; format?: string; level?: string }) {
         const {
             label = process.pid.toString(),
             format = 'YYYY-MM-DD HH:mm:ss',
@@ -206,20 +233,19 @@ export class Logger{
         this._logger.add(new winston.transports.Console({
             level,
             handleExceptions: true,
-            json: false,
             format: winston.format.combine(
                 winston.format.metadata(),
-                winston.format.label({label}),
-                winston.format.timestamp({format}),
+                winston.format.label({ label }),
+                winston.format.timestamp({ format }),
                 this.winstonCustomFileFormatter
             ),
         }));
     }
 
     private addFileTransport(
-        file: { dir: string, filename: string, maxSize?: number, maxFiles?: number },
-        options?: { label?: string, format?: string, level?: string }) {
-
+        file: { dir: string; filename: string; maxSize?: number; maxFiles?: number },
+        options?: { label?: string; format?: string; level?: string }
+    ) {
         const {
             label = process.pid.toString(),
             format = 'YYYY-MM-DD HH:mm:ss',
@@ -227,54 +253,48 @@ export class Logger{
         } = options || {};
 
         if (!fs.existsSync(file.dir)) {
-            // Create the directory if it does not exist
-            fs.mkdirSync(file.dir);
+            fs.mkdirSync(file.dir, { recursive: true });
         }
+
         this._logger.add(new winston.transports.File({
-            filename: file.dir + (file.filename),
-            json: false,
+            filename: file.dir.endsWith('/') ? file.dir + file.filename : `${file.dir}/${file.filename}`,
             level,
-            maxsize: file?.maxSize ? file.maxSize : 10000000, // 10MB max log size
-            maxFiles: file?.maxFiles ? file.maxFiles : 10, // 10 max log files
+            maxsize: file.maxSize ? file.maxSize : 10000000, // 10MB max log size
+            maxFiles: file.maxFiles ? file.maxFiles : 10,     // 10 max log files
             format: winston.format.combine(
-                winston.format.label({label}),
-                winston.format.timestamp({format}),
+                winston.format.label({ label }),
+                winston.format.timestamp({ format }),
                 this.winstonCustomFileFormatter
             ),
-            handleExceptions: true,
-            humanReadableUnhandledException: true,
-            exitOnError: false
+            handleExceptions: true
         }));
     }
 
     private winstonCustomFileFormatter = winston.format.printf(info => {
-        const messageFormat = (msg) => {
-            const len = msg ? JSON.stringify(msg).length : 0;
-            return (len > this.conf.max_msg_len) ? JSON.stringify(msg).substring(0, this.conf.max_msg_len || 4096) : msg;
+        const maxLen = this.conf?.max_msg_len || 4096;
+        const messageFormat = (msg: any) => {
+            if (msg === undefined || msg === null) return '';
+            const str = typeof msg === 'object' ? GeneralUtils.JSONStringify(msg) : String(msg);
+            return str.length > maxLen ? str.substring(0, maxLen) : msg;
         };
 
-        const jsonFormat: { name: string, hostname: string, level: string, msg: any, pid: string, time: string, meta?: object } = {
-            name: info.label,
+        const jsonFormat: { name: string; hostname: string; level: string; msg: any; pid: string; time: any; meta?: object } = {
+            name: String(info.label || ''),
             hostname: os.hostname(),
-            level: info.level.toUpperCase(),
+            level: (info.level || '').toUpperCase(),
             msg: messageFormat(info.message),
             pid: process.pid.toString(),
             time: info.timestamp
         };
 
-        /*
-         minimum string size of json object is 2 ('{}').
-         info.metadata is always created, could be empty object or not empty object.
-         */
         const sizeMetadata = GeneralUtils.JSONStringify(info?.metadata || {}).length;
         if (sizeMetadata > 2) {
-            if (sizeMetadata > this.conf.max_msg_len)
-                jsonFormat.meta = {info: "Metadata size too large, hidden metadata", size: sizeMetadata};
-            else
-                jsonFormat.meta = info.metadata;
+            if (sizeMetadata > maxLen) {
+                jsonFormat.meta = { info: "Metadata size too large, hidden metadata", size: sizeMetadata };
+            } else {
+                jsonFormat.meta = info.metadata as object;
+            }
         }
         return GeneralUtils.JSONStringify(jsonFormat);
     });
-
-
 }

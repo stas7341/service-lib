@@ -19,7 +19,7 @@ describe(`Unit Tests http requests`, () => {
 
     test(`make [GET] request HttpService.get should return statusCode 200 and object as body`, async () => {
         if (process.env?.STANDALONE_TEST?.toLowerCase() === 'true') {
-            jest.spyOn(HttpService, 'get').mockResolvedValueOnce('{}');
+            jest.spyOn(HttpService, 'get').mockResolvedValueOnce({});
         }
 
         const url = `https://postman-echo.com/get?foo1=bar1&foo2=bar2`;
@@ -161,7 +161,10 @@ describe(`Unit Tests http requests`, () => {
         }
 
         const url = "https://postman-echo.com/stream/5";
-        const downloadStream = HttpService.getDownLoadStream(url, {"test_key": "test_value"});
+        const downloadStream = await HttpService.getDownLoadStream(url, {"test_key": "test_value"});
+        if (downloadStream && typeof downloadStream.destroy === 'function') {
+            downloadStream.destroy();
+        }
         expect(true).toBe(true);
-    })
+    });
 });
